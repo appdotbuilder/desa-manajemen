@@ -1,53 +1,140 @@
+import { db } from '../db';
+import { villageBudgetTable } from '../db/schema';
 import { type CreateVillageBudgetInput, type UpdateVillageBudgetInput, type VillageBudget, type GetByIdInput } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function createVillageBudget(input: CreateVillageBudgetInput): Promise<VillageBudget> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new village budget and persisting it in the database.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+  try {
+    // Insert village budget record
+    const result = await db.insert(villageBudgetTable)
+      .values({
         category: input.category,
-        allocated_amount: input.allocated_amount,
-        used_amount: 0,
+        allocated_amount: input.allocated_amount.toString(), // Convert number to string for numeric column
         year: input.year,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as VillageBudget);
+        used_amount: '0' // Default value as string for numeric column
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const budget = result[0];
+    return {
+      ...budget,
+      allocated_amount: parseFloat(budget.allocated_amount), // Convert string back to number
+      used_amount: parseFloat(budget.used_amount) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Village budget creation failed:', error);
+    throw error;
+  }
 }
 
 export async function getVillageBudgets(): Promise<VillageBudget[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching all village budgets from the database.
-    return [];
+  try {
+    const results = await db.select()
+      .from(villageBudgetTable)
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    return results.map(budget => ({
+      ...budget,
+      allocated_amount: parseFloat(budget.allocated_amount),
+      used_amount: parseFloat(budget.used_amount)
+    }));
+  } catch (error) {
+    console.error('Failed to fetch village budgets:', error);
+    throw error;
+  }
 }
 
 export async function getVillageBudgetById(input: GetByIdInput): Promise<VillageBudget | null> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching a specific village budget by ID from the database.
-    return null;
+  try {
+    const results = await db.select()
+      .from(villageBudgetTable)
+      .where(eq(villageBudgetTable.id, input.id))
+      .execute();
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    // Convert numeric fields back to numbers before returning
+    const budget = results[0];
+    return {
+      ...budget,
+      allocated_amount: parseFloat(budget.allocated_amount),
+      used_amount: parseFloat(budget.used_amount)
+    };
+  } catch (error) {
+    console.error('Failed to fetch village budget by ID:', error);
+    throw error;
+  }
 }
 
 export async function updateVillageBudget(input: UpdateVillageBudgetInput): Promise<VillageBudget> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating an existing village budget in the database.
-    return Promise.resolve({
-        id: input.id,
-        category: input.category || 'Placeholder Category',
-        allocated_amount: input.allocated_amount || 0,
-        used_amount: input.used_amount || 0,
-        year: input.year || new Date().getFullYear(),
-        created_at: new Date(),
-        updated_at: new Date()
-    } as VillageBudget);
+  try {
+    // Build update object, converting numeric fields to strings
+    const updateData: any = {};
+    if (input.category !== undefined) updateData.category = input.category;
+    if (input.allocated_amount !== undefined) updateData.allocated_amount = input.allocated_amount.toString();
+    if (input.used_amount !== undefined) updateData.used_amount = input.used_amount.toString();
+    if (input.year !== undefined) updateData.year = input.year;
+    
+    // Always update the updated_at timestamp
+    updateData.updated_at = new Date();
+
+    const results = await db.update(villageBudgetTable)
+      .set(updateData)
+      .where(eq(villageBudgetTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (results.length === 0) {
+      throw new Error(`Village budget with ID ${input.id} not found`);
+    }
+
+    // Convert numeric fields back to numbers before returning
+    const budget = results[0];
+    return {
+      ...budget,
+      allocated_amount: parseFloat(budget.allocated_amount),
+      used_amount: parseFloat(budget.used_amount)
+    };
+  } catch (error) {
+    console.error('Village budget update failed:', error);
+    throw error;
+  }
 }
 
 export async function deleteVillageBudget(input: GetByIdInput): Promise<{ success: boolean }> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is deleting a village budget from the database.
-    return { success: true };
+  try {
+    const results = await db.delete(villageBudgetTable)
+      .where(eq(villageBudgetTable.id, input.id))
+      .returning({ id: villageBudgetTable.id })
+      .execute();
+
+    return { success: results.length > 0 };
+  } catch (error) {
+    console.error('Village budget deletion failed:', error);
+    throw error;
+  }
 }
 
 export async function getBudgetByYear(year: number): Promise<VillageBudget[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching village budgets for a specific year from the database.
-    return [];
+  try {
+    const results = await db.select()
+      .from(villageBudgetTable)
+      .where(eq(villageBudgetTable.year, year))
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    return results.map(budget => ({
+      ...budget,
+      allocated_amount: parseFloat(budget.allocated_amount),
+      used_amount: parseFloat(budget.used_amount)
+    }));
+  } catch (error) {
+    console.error('Failed to fetch budgets by year:', error);
+    throw error;
+  }
 }
